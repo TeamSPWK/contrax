@@ -366,7 +366,12 @@ export default function Home() {
 
           <div className="flex-1 overflow-hidden">
             {leftTab === "pdf" && pdfUrl ? (
-              <PdfViewer fileUrl={pdfUrl} />
+              <PdfViewer
+                fileUrl={pdfUrl}
+                issues={allIssues}
+                activeIssueIndex={activeIssueIndex}
+                onIssueClick={(idx) => setActiveIssueIndex(idx)}
+              />
             ) : (
               <div className="h-full overflow-y-auto">
                 <ContractViewer
@@ -386,7 +391,7 @@ export default function Home() {
             result={result as never}
             onIssueClick={(idx) => {
               setActiveIssueIndex(idx);
-              setLeftTab("text");
+              setLeftTab(pdfUrl ? "pdf" : "text");
             }}
           />
         </div>
