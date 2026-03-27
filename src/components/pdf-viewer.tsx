@@ -12,20 +12,20 @@ interface PdfViewerProps {
 }
 
 const HIGHLIGHT_COLORS: Record<string, string> = {
-  critical: "rgba(239, 68, 68, 0.3)",
+  critical: "rgba(239, 68, 68, 0.35)",
   danger: "rgba(249, 115, 22, 0.3)",
   warning: "rgba(234, 179, 8, 0.25)",
   info: "rgba(59, 130, 246, 0.2)",
 };
 
 const ACTIVE_BORDER: Record<string, string> = {
-  critical: "rgba(239, 68, 68, 0.8)",
-  danger: "rgba(249, 115, 22, 0.8)",
-  warning: "rgba(234, 179, 8, 0.7)",
-  info: "rgba(59, 130, 246, 0.7)",
+  critical: "rgba(239, 68, 68, 0.9)",
+  danger: "rgba(249, 115, 22, 0.9)",
+  warning: "rgba(234, 179, 8, 0.8)",
+  info: "rgba(59, 130, 246, 0.8)",
 };
 
-interface HighlightRect {
+interface HighlightInfo {
   pageIndex: number;
   rects: { x: number; y: number; w: number; h: number }[];
   issueIndex: number;
@@ -44,10 +44,9 @@ export default function PdfViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [highlights, setHighlights] = useState<HighlightRect[]>([]);
-  const pageWrappersRef = useRef<HTMLDivElement[]>([]);
+  const highlightsRef = useRef<HighlightInfo[]>([]);
+  const pageWrappersRef = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // PDF 렌더링 + 텍스트 위치 추출
   useEffect(() => {
     let cancelled = false;
 
@@ -55,7 +54,7 @@ export default function PdfViewer({
       if (!containerRef.current) return;
       setLoading(true);
       setError(null);
-      pageWrappersRef.current = [];
+      pageWrappersRef.current.clear();
 
       try {
         const pdfjsLib = await import("pdfjs-dist");
@@ -68,6 +67,7 @@ export default function PdfViewer({
         setPageCount(pdf.numPages);
         containerRef.current.replaceChildren();
 
+        // 페이지별 텍스트 정보 수집
         const allPageTexts: { pageIndex: number; text: string; items: { str: string; x: number; y: number; w: number; h: number }[] }[] = [];
 
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -75,11 +75,10 @@ export default function PdfViewer({
           const scale = 1.5;
           const viewport = page.getViewport({ scale });
 
+          // 페이지 wrapper — position: relative로 하이라이트 기준점
           const wrapper = document.createElement("div");
           wrapper.className = "relative mb-2";
           wrapper.setAttribute("data-page", String(i));
-          wrapper.style.width = `${viewport.width}px`;
-          wrapper.style.maxWidth = "100%";
 
           const canvas = document.createElement("canvas");
           canvas.width = viewport.width;
@@ -88,14 +87,14 @@ export default function PdfViewer({
 
           wrapper.appendChild(canvas);
           containerRef.current?.appendChild(wrapper);
-          pageWrappersRef.current.push(wrapper);
+          pageWrappersRef.current.set(i - 1, wrapper);
 
           const ctx = canvas.getContext("2d");
           if (ctx) {
             await page.render({ canvasContext: ctx, canvas, viewport } as never).promise;
           }
 
-          // 텍스트 위치 추출
+          // 텍스트 좌표 추출
           const textContent = await page.getTextContent();
           const items: { str: string; x: number; y: number; w: number; h: number }[] = [];
           let pageText = "";
@@ -107,13 +106,8 @@ export default function PdfViewer({
                 const x = tx[4] * scale;
                 const y = viewport.height - tx[5] * scale;
                 const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * scale;
-                items.push({
-                  str: item.str,
-                  x,
-                  y: y - fontSize,
-                  w: (item as never as { width: number }).width * scale,
-                  h: fontSize + 4,
-                });
+                const w = (item as never as { width: number }).width * scale;
+                items.push({ str: item.str, x, y: y - fontSize, w, h: fontSize + 2 });
               }
               pageText += item.str + " ";
             }
@@ -123,36 +117,30 @@ export default function PdfViewer({
         }
 
         // 이슈별 하이라이트 위치 계산
-        if (issues.length > 0) {
-          const hlResults: HighlightRect[] = [];
+        if (issues.length > 0 && !cancelled) {
+          const hlResults: HighlightInfo[] = [];
 
           issues.forEach((issue, issueIdx) => {
             if (!issue.clause) return;
 
-            // clause에서 검색 키워드 추출 (앞 40자 또는 핵심 한글 키워드)
             const searchTerms: string[] = [];
-            const shortClause = issue.clause.slice(0, 50);
-            searchTerms.push(shortClause);
-
+            searchTerms.push(issue.clause.slice(0, 50));
             const keywords = issue.clause.match(/[가-힣]{3,}[^,.\s]{0,8}/g) || [];
             searchTerms.push(...keywords.slice(0, 3));
 
             for (const pageData of allPageTexts) {
               let found = false;
-
               for (const term of searchTerms) {
                 if (term.length < 3) continue;
                 const matchIdx = pageData.text.indexOf(term);
                 if (matchIdx === -1) continue;
 
-                // 매칭된 텍스트 아이템들의 rect 수집
                 let charCount = 0;
                 const rects: { x: number; y: number; w: number; h: number }[] = [];
-
                 for (const item of pageData.items) {
                   const itemEnd = charCount + item.str.length + 1;
                   if (itemEnd > matchIdx && charCount < matchIdx + term.length) {
-                    rects.push({ x: item.x, y: item.y, w: item.w, h: item.h });
+                    rects.push({ ...item });
                   }
                   charCount = itemEnd;
                 }
@@ -169,12 +157,13 @@ export default function PdfViewer({
                   break;
                 }
               }
-
               if (found) break;
             }
           });
 
-          if (!cancelled) setHighlights(hlResults);
+          highlightsRef.current = hlResults;
+          // DOM에 하이라이트 삽입
+          renderHighlights(hlResults, null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -189,16 +178,85 @@ export default function PdfViewer({
     return () => { cancelled = true; };
   }, [fileUrl, issues]);
 
-  // 활성 이슈 변경 시 해당 페이지로 스크롤
+  // 하이라이트를 각 페이지 wrapper 안에 DOM으로 직접 삽입
+  const renderHighlights = useCallback((hls: HighlightInfo[], activeIdx: number | null) => {
+    // 기존 하이라이트 제거
+    document.querySelectorAll("[data-hl]").forEach((el) => el.remove());
+
+    for (const hl of hls) {
+      const wrapper = pageWrappersRef.current.get(hl.pageIndex);
+      if (!wrapper) continue;
+
+      const canvas = wrapper.querySelector("canvas");
+      if (!canvas) continue;
+      const scaleX = wrapper.offsetWidth / canvas.width;
+      const isActive = hl.issueIndex === activeIdx;
+      const color = HIGHLIGHT_COLORS[hl.severity] || HIGHLIGHT_COLORS.info;
+      const border = ACTIVE_BORDER[hl.severity] || ACTIVE_BORDER.info;
+
+      hl.rects.forEach((rect, ri) => {
+        const div = document.createElement("div");
+        div.setAttribute("data-hl", String(hl.issueIndex));
+        div.style.cssText = `
+          position:absolute;
+          left:${rect.x * scaleX}px;
+          top:${rect.y * scaleX}px;
+          width:${Math.max(rect.w * scaleX, 80)}px;
+          height:${rect.h * scaleX + 2}px;
+          background:${color};
+          border:${isActive ? `2px solid ${border}` : "1px solid transparent"};
+          border-radius:2px;
+          cursor:pointer;
+          z-index:${isActive ? 10 : 5};
+          ${isActive ? `box-shadow:0 0 8px ${border};` : ""}
+          transition:all 0.2s;
+        `;
+        div.addEventListener("click", () => onIssueClick?.(hl.issueIndex));
+        div.addEventListener("mouseenter", () => {
+          div.style.border = `2px solid ${border}`;
+        });
+        div.addEventListener("mouseleave", () => {
+          if (hl.issueIndex !== activeIdx) {
+            div.style.border = "1px solid transparent";
+          }
+        });
+
+        // 첫 번째 rect에만 라벨
+        if (ri === 0) {
+          const label = document.createElement("div");
+          label.style.cssText = `
+            position:absolute;top:-22px;left:0;white-space:nowrap;
+            background:${border};color:white;font-size:10px;font-weight:600;
+            padding:1px 6px;border-radius:3px;
+            opacity:${isActive ? "1" : "0"};
+            transition:opacity 0.2s;pointer-events:none;
+          `;
+          label.textContent = hl.label;
+          div.appendChild(label);
+
+          div.addEventListener("mouseenter", () => { label.style.opacity = "1"; });
+          div.addEventListener("mouseleave", () => {
+            if (hl.issueIndex !== activeIdx) label.style.opacity = "0";
+          });
+        }
+
+        wrapper.appendChild(div);
+      });
+    }
+  }, [onIssueClick]);
+
+  // activeIssueIndex 변경 시 하이라이트 업데이트 + 스크롤
   useEffect(() => {
+    renderHighlights(highlightsRef.current, activeIssueIndex);
+
     if (activeIssueIndex === null) return;
-    const hl = highlights.find((h) => h.issueIndex === activeIssueIndex);
+    const hl = highlightsRef.current.find((h) => h.issueIndex === activeIssueIndex);
     if (!hl) return;
-    const wrapper = pageWrappersRef.current[hl.pageIndex];
+    const wrapper = pageWrappersRef.current.get(hl.pageIndex);
     if (wrapper) {
       wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [activeIssueIndex, highlights]);
+  }, [activeIssueIndex, renderHighlights]);
 
   // 페이지 관찰
   useEffect(() => {
@@ -224,18 +282,11 @@ export default function PdfViewer({
     return () => observer.disconnect();
   }, [loading]);
 
-  const handleHighlightClick = useCallback(
-    (issueIndex: number) => {
-      onIssueClick?.(issueIndex);
-    },
-    [onIssueClick]
-  );
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50 border-b border-gray-700">
         <span className="text-xs text-gray-400">
-          PDF 원본 {highlights.length > 0 && `(${highlights.length}개 하이라이트)`}
+          PDF 원본 {highlightsRef.current.length > 0 && `(${highlightsRef.current.length}개 하이라이트)`}
         </span>
         {pageCount > 0 && (
           <span className="text-xs text-gray-500">{currentPage} / {pageCount} 페이지</span>
@@ -251,59 +302,6 @@ export default function PdfViewer({
           <div className="text-red-400 text-sm p-4">{error}</div>
         )}
         <div ref={containerRef} />
-
-        {/* 하이라이트 오버레이 */}
-        {!loading && highlights.map((hl, hlIdx) => {
-          const wrapper = pageWrappersRef.current[hl.pageIndex];
-          if (!wrapper) return null;
-
-          const isActive = hl.issueIndex === activeIssueIndex;
-          const color = HIGHLIGHT_COLORS[hl.severity] || HIGHLIGHT_COLORS.info;
-          const border = ACTIVE_BORDER[hl.severity] || ACTIVE_BORDER.info;
-
-          return hl.rects.map((rect, ri) => {
-            // wrapper 기준 상대 위치로 변환
-            const wrapperRect = wrapper.getBoundingClientRect();
-            const containerRect = containerRef.current?.parentElement?.getBoundingClientRect();
-            if (!containerRect) return null;
-
-            const scaleX = wrapper.offsetWidth / (wrapper.firstElementChild as HTMLCanvasElement)?.width || 1;
-
-            return (
-              <div
-                key={`${hlIdx}-${ri}`}
-                onClick={() => handleHighlightClick(hl.issueIndex)}
-                className="absolute cursor-pointer transition-all group/phl"
-                style={{
-                  left: `${wrapper.offsetLeft + rect.x * scaleX + 12}px`,
-                  top: `${wrapper.offsetTop + rect.y * scaleX}px`,
-                  width: `${Math.max(rect.w * scaleX, 100)}px`,
-                  height: `${rect.h * scaleX + 2}px`,
-                  backgroundColor: color,
-                  border: isActive ? `2px solid ${border}` : "1px solid transparent",
-                  borderRadius: "2px",
-                  zIndex: isActive ? 10 : 5,
-                  boxShadow: isActive ? `0 0 8px ${border}` : "none",
-                }}
-              >
-                {/* 라벨 툴팁 */}
-                {ri === 0 && (
-                  <div
-                    className={`absolute -top-6 left-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium shadow-lg transition-opacity ${
-                      isActive ? "opacity-100" : "opacity-0 group-hover/phl:opacity-100"
-                    }`}
-                    style={{
-                      backgroundColor: border,
-                      color: "white",
-                    }}
-                  >
-                    {hl.label}
-                  </div>
-                )}
-              </div>
-            );
-          });
-        })}
       </div>
     </div>
   );
