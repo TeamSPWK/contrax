@@ -7,7 +7,7 @@ import ProgressBar, { type ProgressStep } from "@/components/progress-bar";
 import ContractViewer from "@/components/contract-viewer";
 import PdfViewer from "@/components/pdf-viewer";
 import { generateReportHtml } from "@/lib/report";
-import { getHistory, addHistory, type HistoryEntry } from "@/lib/history";
+import { getHistory, addHistory, getHistoryDetail, type HistoryEntry } from "@/lib/history";
 import type { ConsensusAnalysis } from "@/lib/ai/cross-verify";
 import type { AIAnalysis } from "@/lib/ai/claude";
 import { RISK_LABELS, RISK_COLORS } from "@/lib/constants";
@@ -187,7 +187,15 @@ export default function Home() {
           issueCount: consensus.commonIssues.length,
           verdict: consensus.verdict,
         };
-        addHistory(entry);
+        addHistory(entry, {
+          fileName: analysisResult.fileName,
+          textLength: analysisResult.textLength,
+          contractText: analysisResult.contractText,
+          analyses: analysisResult.analyses,
+          consensus: analysisResult.consensus,
+          totalTime: analysisResult.totalTime,
+          timestamp: analysisResult.timestamp,
+        });
         setHistory(getHistory());
         break;
       }
@@ -197,6 +205,28 @@ export default function Home() {
         break;
       }
     }
+  }
+
+  function handleLoadHistory(id: string) {
+    const detail = getHistoryDetail(id);
+    if (!detail) {
+      setError("저장된 분석 결과를 찾을 수 없습니다.");
+      return;
+    }
+    setResult({
+      success: true,
+      fileName: detail.fileName,
+      textLength: detail.textLength,
+      contractText: detail.contractText,
+      analyses: detail.analyses,
+      consensus: detail.consensus,
+      totalTime: detail.totalTime,
+      timestamp: detail.timestamp,
+    });
+    setPdfUrl(null); // 원본 PDF는 없음
+    setLeftTab("text");
+    setError(null);
+    setSteps([]);
   }
 
   function handleDownloadReport() {
@@ -239,7 +269,11 @@ export default function Home() {
             <h3 className="text-sm font-semibold text-gray-500 mb-3">최근 분석 기록</h3>
             <div className="grid gap-2">
               {history.map((h) => (
-                <div key={h.id} className="flex items-center gap-4 bg-gray-900/50 rounded-xl px-4 py-3 border border-gray-800">
+                <button
+                  key={h.id}
+                  onClick={() => handleLoadHistory(h.id)}
+                  className="flex items-center gap-4 bg-gray-900/50 rounded-xl px-4 py-3 border border-gray-800 hover:border-blue-500/40 hover:bg-gray-800/50 transition-colors w-full text-left"
+                >
                   <div className="flex-1">
                     <span className="text-sm font-medium text-gray-200">{h.fileName}</span>
                     <span className="text-xs text-gray-600 ml-2">{new Date(h.timestamp).toLocaleDateString("ko-KR")}</span>
@@ -249,7 +283,8 @@ export default function Home() {
                     {RISK_LABELS[h.riskLevel] || "보통"}
                   </span>
                   <span className="text-xs text-gray-600">{h.issueCount}건</span>
-                </div>
+                  <span className="text-xs text-gray-600">불러오기</span>
+                </button>
               ))}
             </div>
           </div>
