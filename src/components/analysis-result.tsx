@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CrossVerificationResult } from "@/lib/ai/cross-verify";
 import type { ContractIssue } from "@/lib/ai/claude";
+import { RISK_LABELS, RISK_COLORS } from "@/lib/constants";
 
 interface AnalysisResultProps {
   result: CrossVerificationResult & { fileName: string; textLength: number };
@@ -23,19 +24,8 @@ const severityLabels: Record<string, string> = {
   critical: "심각",
 };
 
-const riskColors: Record<string, string> = {
-  low: "text-green-400",
-  medium: "text-yellow-400",
-  high: "text-orange-400",
-  critical: "text-red-400",
-};
-
-const riskLabels: Record<string, string> = {
-  low: "낮음",
-  medium: "보통",
-  high: "높음",
-  critical: "심각",
-};
+const riskColors = RISK_COLORS;
+const riskLabels = RISK_LABELS;
 
 const verdictConfig: Record<
   string,

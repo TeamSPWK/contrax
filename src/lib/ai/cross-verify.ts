@@ -1,7 +1,4 @@
 import type { AIAnalysis, ContractIssue } from "./claude";
-import { analyzeWithClaude } from "./claude";
-import { analyzeWithGPT } from "./openai";
-import { analyzeWithGemini } from "./gemini";
 
 export interface CrossVerificationResult {
   analyses: AIAnalysis[];
@@ -16,56 +13,6 @@ export interface ConsensusAnalysis {
   uniqueIssues: { provider: string; issues: ContractIssue[] }[];
   overallRiskLevel: "low" | "medium" | "high" | "critical";
   summary: string;
-}
-
-export async function crossVerifyContract(
-  contractText: string
-): Promise<CrossVerificationResult> {
-  console.log(`[ContraX] 교차검증 시작 — 텍스트 길이: ${contractText.length}자`);
-  console.log(`[ContraX] Phase 1: Claude + GPT + Gemini 병렬 호출 중...`);
-  const startTime = Date.now();
-
-  // Phase 1: 3개 AI 병렬 호출
-  const results = await Promise.allSettled([
-    analyzeWithClaude(contractText).then((r) => {
-      console.log(`[ContraX] ✓ Claude 완료 (${Date.now() - startTime}ms) — 위험도: ${r.riskLevel}, 이슈: ${r.issues.length}건`);
-      return r;
-    }),
-    analyzeWithGPT(contractText).then((r) => {
-      console.log(`[ContraX] ✓ GPT 완료 (${Date.now() - startTime}ms) — 위험도: ${r.riskLevel}, 이슈: ${r.issues.length}건`);
-      return r;
-    }),
-    analyzeWithGemini(contractText).then((r) => {
-      console.log(`[ContraX] ✓ Gemini 완료 (${Date.now() - startTime}ms) — 위험도: ${r.riskLevel}, 이슈: ${r.issues.length}건`);
-      return r;
-    }),
-  ]);
-
-  const analyses: AIAnalysis[] = [];
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      analyses.push(result.value);
-    } else {
-      console.error(`[ContraX] ✗ AI 호출 실패:`, result.reason?.message || result.reason);
-    }
-  }
-
-  console.log(`[ContraX] Phase 1 완료 — 성공: ${analyses.length}/3, 총 소요: ${Date.now() - startTime}ms`);
-
-  if (analyses.length === 0) {
-    throw new Error("모든 AI 분석이 실패했습니다.");
-  }
-
-  // Phase 2: 합의 분석
-  console.log(`[ContraX] Phase 2: 합의 분석 중...`);
-  const consensus = buildConsensus(analyses);
-  console.log(`[ContraX] 교차검증 완료 — 합의율: ${consensus.consensusRate}%, 판정: ${consensus.verdict}, 공통이슈: ${consensus.commonIssues.length}건`);
-
-  return {
-    analyses,
-    consensus,
-    timestamp: new Date().toISOString(),
-  };
 }
 
 export function buildConsensus(analyses: AIAnalysis[]): ConsensusAnalysis {

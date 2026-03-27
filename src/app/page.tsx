@@ -10,6 +10,7 @@ import { generateReportHtml } from "@/lib/report";
 import { getHistory, addHistory, type HistoryEntry } from "@/lib/history";
 import type { ConsensusAnalysis } from "@/lib/ai/cross-verify";
 import type { AIAnalysis } from "@/lib/ai/claude";
+import { RISK_LABELS, RISK_COLORS } from "@/lib/constants";
 
 interface AnalysisData {
   success: boolean;
@@ -200,9 +201,6 @@ export default function Home() {
   }
 
   const allIssues = result ? result.consensus.commonIssues : [];
-  const riskBadge: Record<string, string> = {
-    low: "text-green-400", medium: "text-yellow-400", high: "text-orange-400", critical: "text-red-400",
-  };
 
   // ── 랜딩 (결과 없음) ──
   if (!result && !isLoading) {
@@ -236,8 +234,8 @@ export default function Home() {
                     <span className="text-xs text-gray-600 ml-2">{new Date(h.timestamp).toLocaleDateString("ko-KR")}</span>
                   </div>
                   <span className="text-sm font-bold text-white">{h.consensusRate}%</span>
-                  <span className={`text-xs ${riskBadge[h.riskLevel] || "text-gray-400"}`}>
-                    {h.riskLevel === "critical" ? "심각" : h.riskLevel === "high" ? "높음" : h.riskLevel === "medium" ? "보통" : "낮음"}
+                  <span className={`text-xs ${RISK_COLORS[h.riskLevel] || "text-gray-400"}`}>
+                    {RISK_LABELS[h.riskLevel] || "보통"}
                   </span>
                   <span className="text-xs text-gray-600">{h.issueCount}건</span>
                 </div>
@@ -311,8 +309,8 @@ export default function Home() {
         <span className="text-xs text-gray-600">
           합의율 <span className="text-white font-bold">{result.consensus.consensusRate}%</span>
         </span>
-        <span className={`text-xs ${riskBadge[result.consensus.overallRiskLevel]}`}>
-          위험도: {result.consensus.overallRiskLevel === "critical" ? "심각" : result.consensus.overallRiskLevel === "high" ? "높음" : result.consensus.overallRiskLevel === "medium" ? "보통" : "낮음"}
+        <span className={`text-xs ${RISK_COLORS[result.consensus.overallRiskLevel]}`}>
+          위험도: {RISK_LABELS[result.consensus.overallRiskLevel] || "보통"}
         </span>
         <div className="flex-1" />
         <button
