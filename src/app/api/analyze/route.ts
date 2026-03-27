@@ -119,12 +119,11 @@ export async function POST(request: NextRequest) {
         const totalTime = Date.now() - startTime;
         log(`교차검증 완료 — 합의율: ${consensus.consensusRate}%, 판정: ${consensus.verdict}`);
 
-        // Step 4: 최종 결과
+        // Step 4: 최종 결과 (contractText는 extracted에서 이미 전송됨 → 중복 제거)
         send("result", {
           success: true,
           fileName,
           textLength: contractText.length,
-          contractText,
           analyses,
           consensus,
           totalTime,

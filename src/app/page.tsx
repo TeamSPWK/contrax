@@ -32,6 +32,7 @@ export default function Home() {
   const [leftTab, setLeftTab] = useState<"pdf" | "text">("pdf");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const contractTextRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -104,19 +105,26 @@ export default function Home() {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
 
-        let eventName = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventName = line.slice(7);
-          } else if (line.startsWith("data: ") && eventName) {
+        // SSE 표준: 이벤트는 \n\n으로 구분
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          const lines = part.split("\n");
+          let eventName = "";
+          let dataStr = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) eventName = line.slice(7);
+            else if (line.startsWith("data: ")) dataStr = line.slice(6);
+          }
+          if (eventName && dataStr) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(dataStr);
               handleSSEEvent(eventName, data, file.name);
-            } catch { /* skip */ }
-            eventName = "";
+            } catch {
+              console.warn("[SSE] JSON parse failed for event:", eventName, dataStr.slice(0, 100));
+            }
           }
         }
       }
@@ -137,6 +145,7 @@ export default function Home() {
         const step = data.step as string;
         if (step === "extract") updateStep("extract", { status: "active" });
         else if (step === "extracted") {
+          contractTextRef.current = (data.contractText as string) || "";
           updateStep("extract", { status: "done", detail: `${(data.message as string).match(/[\d,]+/)?.[0] || ""}자` });
           updateStep("claude", { status: "active" });
           updateStep("gpt", { status: "active" });
@@ -164,6 +173,7 @@ export default function Home() {
       }
       case "result": {
         const analysisResult = data as unknown as AnalysisData;
+        analysisResult.contractText = analysisResult.contractText || contractTextRef.current;
         const consensus = analysisResult.consensus;
         updateStep("consensus", { status: "done", detail: `${consensus.consensusRate}%` });
         setResult(analysisResult);
