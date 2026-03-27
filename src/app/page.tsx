@@ -69,6 +69,7 @@ export default function Home() {
       { id: "extract", label: "텍스트 추출", status: "active" },
       { id: "claude", label: "Claude 분석", status: "pending" },
       { id: "gpt", label: "GPT-5.4 분석", status: "pending" },
+
       { id: "gemini", label: "Gemini 분석", status: "pending" },
       { id: "consensus", label: "합의 분석", status: "pending" },
     ];

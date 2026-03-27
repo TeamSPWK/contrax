@@ -10,7 +10,7 @@ export async function analyzeWithGemini(
   const prompt = CONTRACT_REVIEW_PROMPT + `\n\n다음 계약서를 검토해주세요:\n\n${contractText}`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
