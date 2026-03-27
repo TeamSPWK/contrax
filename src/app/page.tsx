@@ -318,25 +318,13 @@ export default function Home() {
   // ── 분석 중 (로딩) ──
   if (isLoading) {
     return (
-      <main className="h-screen flex">
-        {/* 좌측: PDF 미리보기 */}
-        <div className="w-1/2 border-r border-gray-800 flex flex-col">
-          {pdfUrl ? (
-            <PdfViewer fileUrl={pdfUrl} />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
-              PDF 미리보기 불가
-            </div>
-          )}
-        </div>
-        {/* 우측: 진행상황 */}
-        <div className="w-1/2 flex flex-col items-center justify-center p-8">
-          <h2 className="text-xl font-bold mb-6">
-            Contra<span className="text-blue-400">X</span> 분석 중
+      <main className="h-screen flex items-center justify-center">
+        <div className="w-full max-w-lg px-8">
+          <h2 className="text-2xl font-bold mb-2 text-center">
+            Contra<span className="text-blue-400">X</span>
           </h2>
-          <div className="w-full max-w-md">
-            <ProgressBar steps={steps} />
-          </div>
+          <p className="text-sm text-gray-500 text-center mb-8">계약서 교차검증 진행 중</p>
+          <ProgressBar steps={steps} />
         </div>
       </main>
     );
