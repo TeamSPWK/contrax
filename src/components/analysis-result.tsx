@@ -3,26 +3,15 @@
 import { useState } from "react";
 import type { CrossVerificationResult } from "@/lib/ai/cross-verify";
 import type { ContractIssue } from "@/lib/ai/claude";
-import { RISK_LABELS, RISK_COLORS } from "@/lib/constants";
+import { RISK_LABELS, RISK_COLORS, SEVERITY_LABELS, SEVERITY_COLORS, PARTY_COLORS } from "@/lib/constants";
 
 interface AnalysisResultProps {
   result: CrossVerificationResult & { fileName: string; textLength: number };
   onIssueClick?: (issueIndex: number) => void;
 }
 
-const severityColors: Record<string, string> = {
-  info: "bg-blue-500/25 text-blue-200 border-blue-400/40",
-  warning: "bg-yellow-500/25 text-yellow-200 border-yellow-400/40",
-  danger: "bg-orange-500/30 text-orange-200 border-orange-400/50",
-  critical: "bg-red-500/30 text-red-200 border-red-400/50",
-};
-
-const severityLabels: Record<string, string> = {
-  info: "참고",
-  warning: "주의",
-  danger: "위험",
-  critical: "심각",
-};
+const severityColors = SEVERITY_COLORS;
+const severityLabels = SEVERITY_LABELS;
 
 const riskColors = RISK_COLORS;
 const riskLabels = RISK_LABELS;
@@ -54,12 +43,7 @@ const verdictConfig: Record<
   },
 };
 
-const partyColors: Record<string, string> = {
-  "발주자 유리": "bg-purple-500/30 text-purple-200 font-semibold",
-  "공급자 유리": "bg-emerald-500/30 text-emerald-200 font-semibold",
-  "양측 리스크": "bg-amber-500/30 text-amber-200 font-semibold",
-  "불명확": "bg-gray-500/25 text-gray-300",
-};
+const partyColors = PARTY_COLORS;
 
 function IssueCard({ issue, index, onIssueClick }: { issue: ContractIssue; index?: number; onIssueClick?: (i: number) => void }) {
   return (

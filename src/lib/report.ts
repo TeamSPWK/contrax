@@ -1,9 +1,8 @@
 import type { ConsensusAnalysis } from "@/lib/ai/cross-verify";
 import type { AIAnalysis, ContractIssue } from "@/lib/ai/claude";
+import { SEVERITY_LABELS } from "@/lib/constants";
 
-const severityLabels: Record<string, string> = {
-  critical: "심각", danger: "위험", warning: "주의", info: "참고",
-};
+const severityLabels = SEVERITY_LABELS;
 
 function issueToHtml(issue: ContractIssue, idx: number): string {
   const sev = severityLabels[issue.severity] || issue.severity;

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import type { ContractIssue } from "@/lib/ai/claude";
+import { SEVERITY_HIGHLIGHT, SEVERITY_LABELS, PARTY_TEXT_COLORS } from "@/lib/constants";
 
 interface ContractViewerProps {
   text: string;
@@ -10,12 +11,7 @@ interface ContractViewerProps {
   onIssueClick: (index: number) => void;
 }
 
-const severityHighlight: Record<string, string> = {
-  critical: "bg-red-500/40 border-b-2 border-red-300 text-red-100",
-  danger: "bg-orange-500/35 border-b-2 border-orange-300 text-orange-100",
-  warning: "bg-yellow-500/30 border-b-2 border-yellow-300 text-yellow-100",
-  info: "bg-blue-500/25 border-b-2 border-blue-300 text-blue-100",
-};
+const severityHighlight = SEVERITY_HIGHLIGHT;
 
 interface HighlightSegment {
   text: string;
@@ -137,15 +133,8 @@ export default function ContractViewer({
 
   const activeIssue = activeIssueIndex !== null ? issues[activeIssueIndex] : null;
 
-  const severityLabels: Record<string, string> = {
-    critical: "심각", danger: "위험", warning: "주의", info: "참고",
-  };
-  const partyColors: Record<string, string> = {
-    "발주자 유리": "text-purple-300",
-    "공급자 유리": "text-emerald-300",
-    "양측 리스크": "text-amber-300",
-    "불명확": "text-gray-400",
-  };
+  const severityLabels = SEVERITY_LABELS;
+  const partyColors = PARTY_TEXT_COLORS;
 
   return (
     <div className="flex gap-4">
