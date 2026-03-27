@@ -32,7 +32,7 @@ export async function analyzeWithClaude(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6-20250620",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: CONTRACT_REVIEW_PROMPT,
       messages: [
