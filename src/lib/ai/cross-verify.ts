@@ -103,11 +103,13 @@ export function buildConsensus(analyses: AIAnalysis[]): ConsensusAnalysis {
   }
 
   // 종합 요약 생성
-  const summaries = analyses.map((a) => a.summary).filter(Boolean);
-  const summary =
-    summaries.length > 0
-      ? `[교차검증 완료] ${analyses.length}개 AI가 분석하여 합의율 ${consensusRate}%를 달성했습니다. 공통 지적사항 ${commonIssues.length}건, 개별 의견 ${uniqueIssues.reduce((sum, u) => sum + u.issues.length, 0)}건이 발견되었습니다. ${summaries[0]}`
-      : "분석 결과를 종합할 수 없습니다.";
+  const cleanSummaries = analyses
+    .map((a) => a.summary)
+    .filter((s) => s && !s.includes('"issues"') && !s.includes("```"));
+  const prefix = `[교차검증 완료] ${analyses.length}개 AI가 분석하여 합의율 ${consensusRate}%를 달성했습니다. 공통 지적사항 ${commonIssues.length}건, 개별 의견 ${uniqueIssues.reduce((sum, u) => sum + u.issues.length, 0)}건이 발견되었습니다.`;
+  const summary = cleanSummaries.length > 0
+    ? `${prefix} ${cleanSummaries[0]}`
+    : prefix;
 
   return {
     consensusRate,

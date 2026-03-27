@@ -57,20 +57,45 @@ export async function analyzeWithClaude(
 
 export function parseAIResponse(provider: string, text: string): AIAnalysis {
   try {
-    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+    // 1차: 마크다운 코드블록 제거
+    let cleaned = text
+      .replace(/```\s*json\s*\n?/gi, "")
+      .replace(/```\s*\n?/g, "")
+      .trim();
+
+    // 2차: JSON 객체 부분만 추출 (앞뒤 설명 텍스트 제거)
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[0];
+    }
+
     const parsed = JSON.parse(cleaned);
     return {
       provider,
-      issues: parsed.issues || [],
+      issues: (parsed.issues || []).map((issue: Record<string, unknown>) => ({
+        category: issue.category || "",
+        severity: issue.severity || "info",
+        affectedParty: issue.affectedParty || "불명확",
+        clause: issue.clause || "",
+        description: issue.description || "",
+        suggestion: issue.suggestion || "",
+        revisedText: issue.revisedText || undefined,
+      })),
       summary: parsed.summary || "",
       riskLevel: parsed.riskLevel || "medium",
       rawResponse: text,
     };
   } catch {
+    // JSON 파싱 완전 실패 시 — 텍스트에서 의미있는 부분만 추출
+    const summaryText = text
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/\{[\s\S]*\}/g, "")
+      .trim()
+      .slice(0, 300);
     return {
       provider,
       issues: [],
-      summary: text.slice(0, 500),
+      summary: summaryText || `${provider} 응답을 파싱할 수 없습니다.`,
       riskLevel: "medium",
       rawResponse: text,
     };
